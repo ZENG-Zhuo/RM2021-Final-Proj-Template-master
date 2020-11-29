@@ -54,35 +54,73 @@ void canCallBack(CAN_HandleTypeDef *hcan1)
 }
 void halfTest(void *param)
 {
-    int tempangle;
+    int startAngle;
     aimAngle = motor5Angle;
-    tempangle = motor5Angle;
+    startAngle = motor5Angle;
+    round = 0;
     disableMotor = false;
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
     for (int i = 0; i < (400000); i += 100)
     {
-        aimAngle = tempangle + i;
+        aimAngle = startAngle + i;
         vTaskDelay(1);
     }
     vTaskDelay(5000);
-    for (int i = 400000; i < (00000); i += 100)
+    for (int i = 400000; i < (1000000); i += 100)
     {
-        aimAngle = tempangle + i;
+        aimAngle = startAngle + i;
         vTaskDelay(1);
     }
     vTaskDelay(5000);
     for (int i = 1000000; i > (400000); i -= 100)
     {
-        aimAngle = tempangle + i;
+        aimAngle = startAngle + i;
         vTaskDelay(1);
     }
     vTaskDelay(5000);
     for (int i = 400000; i > (0); i -= 100)
     {
-        aimAngle = tempangle + i;
+        aimAngle = startAngle + i;
         vTaskDelay(1);
     }
     vTaskDelay(5000);
+}
+static int whereToGo = 0;  // 0->Start 1->B 2-> W
+int lastChoice = 0;
+void gotoAngle(int distance)
+{
+    int temp = distance - (motor5Angle + 8191 * round);
+    if (temp > 0)
+        for (int i = (motor5Angle + 8191 * round); i < distance; i += 100)
+        {
+            aimAngle = startAngle + i;
+            vTaskDelay(1)
+        }
+    else if (temp < 0)
+    {
+        for (int i = (motor5Angle + 8191 * round); i > distance; i -= 100)
+        {
+            aimAngle = startAngle + i;
+            vTaskDelay(1)
+        }
+    }
+}
+void goToLoop(void *param)
+{
+    while (1)
+    {
+        if (lastChoice<> whereToGo)
+        {
+            if (whereToGo == 0)
+                gotoAngle(0);
+            else if (whereToGo == 1)
+                gotoAngle(400000);
+            else if (whereToGo == 2)
+                gotoAngle(1000000);
+            lastChoice = whereToGo;
+        }
+        vTaskDelay(1);
+    }
 }
 void uartCallBack(UART_HandleTypeDef *uart)
 {

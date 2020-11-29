@@ -8,12 +8,12 @@
 #include "gpio.h"
 namespace Chassis
 {
-const int TotalAngle = -83700;
+const int TotalAngle = -86700;
 int16_t tempSpeed[4];
 int16_t speed;
 int16_t zeroSpeed[4] = {0, 0, 0, 0};
 uint8_t speedLevel = 0;  // 0:low 1:mid 2:high
-int16_t speedLevelData[3] = {8, 8, 11};
+int16_t speedLevelData[3] = {3, 8, 12};
 static int16_t motorRPM[5] = {0, 0, 0, 0, 0};
 int16_t motorAimRPM[5] = {0, 0, 0, 0, 0};
 static volatile HAL_StatusTypeDef status;
@@ -29,6 +29,8 @@ static volatile int MonitorRPM, current;
 static volatile int cnt2;
 static volatile int testMonitor;
 bool disableMotor = false;
+bool isDone = false;
+bool isClosed;
 void canCallBack(CAN_HandleTypeDef *hcan1)
 {
     HAL_CAN_GetRxMessage(&hcan, CAN_RX_FIFO0, &rxheader, RxData);
@@ -98,6 +100,7 @@ void init()
     // HAL_UART_RegisterCallback(&uart1,);
     HAL_CAN_ActivateNotification(&hcan, CAN_IER_FMPIE0);
     HAL_CAN_Start(&hcan);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
     // status = HAL_UART_RegisterCallback(
     //     &huart1, HAL_UART_RX_COMPLETE_CB_ID, uartCallBack);
 }
@@ -187,7 +190,7 @@ static volatile int cnt, cnt1;
 void PIDControlSpeedLoop(void *param)
 {
     PID p[5];
-    float setP = 9.0f;
+    float setP = 10.0f;
     float setI = 0.7f;
     float setD = 1.0f;
     int16_t temp[5];
@@ -198,7 +201,10 @@ void PIDControlSpeedLoop(void *param)
         p[i].i = setI;
         p[i].d = setD;
     }
-    //p[2].p = 10.0f;
+    // p[2].p = 10.0f;
+    p[0].p = 10.0f;
+    p[1].p = 10.0f;
+    p[3].p = 10.0f;
     p[4].p = 9.0f;
     while (1)
     {
@@ -257,16 +263,20 @@ void aimSpeedLoop(void *param)
             if (ch2 == 2)
             {
                 aimAngle -= msg[1] * 3;
+                disableMotor = false;
+
                 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
                 setAimSpeed(zeroSpeed);
             }
             else if (ch2 == 3)
             {
-                disableMotor = true;
+                // disableMotor = true;
+                // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+                // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
             }
             else if (ch2 == 1)
             {
-                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_13, GPIO_PIN_SET);
+                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
             }
         }
         else if (ch1 == 1)
@@ -274,29 +284,42 @@ void aimSpeedLoop(void *param)
             if (ch2 == 2)
             {
                 aimAngle -= msg[1] * 3;
-                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+                isDone = false;
+                // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
                 setAimSpeed(zeroSpeed);
+                disableMotor = false;
+                isDone = false;
             }
             else if (ch2 == 3)
             {
-                int tempangle;
-                aimAngle = motor5Angle;
-                tempangle = motor5Angle;
-                round = 0;
-                disableMotor = false;
-                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-                for (int i = 0; i > (-2000); i -= 10)
+                // int tempangle;
+                // aimAngle = motor5Angle;
+                // tempangle = motor5Angle;
+                // round = 0;
+                // disableMotor = false;
+                // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+                // // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
+                // if (!isDone)
+                //     for (int i = 0; i > (TotalAngle); i -= 10)
+                //     {
+                //         aimAngle = tempangle + i;
+                //         vTaskDelay(1);
+                //     }
+                // isDone = true;
+                if (!isDone)
                 {
-                    aimAngle = tempangle + i;
-                    vTaskDelay(1);
+                    if (isClosed)
+                        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+                    else
+                        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+                    isClosed = !isClosed;
+                    isDone = true;
                 }
             }
             else if (ch2 == 1)
             {
-                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_13, GPIO_PIN_RESET);
+                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
             }
-            aimAngle -= msg[1] * 3;
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
         }
         // motorRPM[0] = 4 * (monitor - 1024);
         vTaskDelay(10);
