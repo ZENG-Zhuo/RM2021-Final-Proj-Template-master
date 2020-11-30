@@ -12,6 +12,10 @@ void PIDControlAngleLoop(void *param);
 void PIDControlAngleLoop(void *param);
 void setAimSpeed(int16_t speed[4]);
 void halfTest(void *param);
+void goToLoop(void *param);
+void uartReceiveLoop(void *param);
+void timeBase(void *param);
+void testV(void *param);
 // void canCallBack(CAN_HandleTypeDef *hcan1);
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1);
 }  // namespace Chassis

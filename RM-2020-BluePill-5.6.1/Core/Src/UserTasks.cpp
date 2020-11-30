@@ -116,12 +116,12 @@ extern "C"
                           2,
                           uartTaskStack2,
                           &uartTaskTCB2);
-        xTaskCreateStatic(Chassis::PIDControlAngleLoop,
-                          "test3",
-                          512,
-                          NULL,
-                          2,
-                          uartTaskStack3,
-                          &uartTaskTCB3);
+        // xTaskCreateStatic(Chassis::PIDControlAngleLoop,
+        //                   "test3",
+        //                   512,
+        //                   NULL,
+        //                   2,
+        //                   uartTaskStack3,
+        //                   &uartTaskTCB3);
     }
 }

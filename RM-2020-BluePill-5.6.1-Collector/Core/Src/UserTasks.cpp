@@ -57,6 +57,8 @@ StaticTask_t uartTaskTCB2;
 StackType_t uartTaskStack2[512];
 StaticTask_t uartTaskTCB3;
 StackType_t uartTaskStack3[512];
+StaticTask_t uartTaskTCB4;
+StackType_t uartTaskStack4[512];
 uint8_t data[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
 
 void canTask(void *param)
@@ -109,7 +111,7 @@ extern "C"
                           2,
                           uartTaskStack1,
                           &uartTaskTCB1);
-        xTaskCreateStatic(Chassis::halfTest,
+        xTaskCreateStatic(Chassis::uartReceiveLoop,
                           "test2",
                           512,
                           NULL,
@@ -123,5 +125,12 @@ extern "C"
                           2,
                           uartTaskStack3,
                           &uartTaskTCB3);
+        xTaskCreateStatic(Chassis::goToLoop,
+                          "test4",
+                          512,
+                          NULL,
+                          2,
+                          uartTaskStack4,
+                          &uartTaskTCB4);               
     }
 }

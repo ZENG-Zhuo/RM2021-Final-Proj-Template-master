@@ -8,6 +8,7 @@
 #include "gpio.h"
 namespace Chassis
 {
+static volatile int startAngle;
 const int TotalAngle = 1328000;
 int16_t tempSpeed[4];
 int16_t speed;
@@ -27,7 +28,8 @@ int round = 0;
 int lastAngle;
 static volatile int MonitorRPM, current;
 static volatile int cnt2;
-static volatile int testMonitor;
+static volatile int testMonitor, test2;
+static volatile uint8_t test3[8];
 bool disableMotor = false;
 void canCallBack(CAN_HandleTypeDef *hcan1)
 {
@@ -52,9 +54,9 @@ void canCallBack(CAN_HandleTypeDef *hcan1)
             lastAngle = motor5Angle;
         }
 }
+
 void halfTest(void *param)
 {
-    int startAngle;
     aimAngle = motor5Angle;
     startAngle = motor5Angle;
     round = 0;
@@ -86,7 +88,7 @@ void halfTest(void *param)
     vTaskDelay(5000);
 }
 static int whereToGo = 0;  // 0->Start 1->B 2-> W
-int lastChoice = 0;
+
 void gotoAngle(int distance)
 {
     int temp = distance - (motor5Angle + 8191 * round);
@@ -94,23 +96,44 @@ void gotoAngle(int distance)
         for (int i = (motor5Angle + 8191 * round); i < distance; i += 100)
         {
             aimAngle = startAngle + i;
-            vTaskDelay(1)
+            vTaskDelay(1);
         }
     else if (temp < 0)
     {
         for (int i = (motor5Angle + 8191 * round); i > distance; i -= 100)
         {
             aimAngle = startAngle + i;
-            vTaskDelay(1)
+            vTaskDelay(1);
         }
+    }
+}
+static int cnt1112;
+void work()
+{
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+    vTaskDelay(1000);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+    vTaskDelay(1000);
+}
+int delayCnt = 0;
+void testV(void *param)
+{
+    while (1)
+    {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+        vTaskDelay(1000);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+        vTaskDelay(1000);
     }
 }
 void goToLoop(void *param)
 {
+    int lastChoice = 0;
     while (1)
     {
-        if (lastChoice<> whereToGo)
+        if (!(lastChoice == whereToGo))
         {
+            vTaskDelay(3000);
             if (whereToGo == 0)
                 gotoAngle(0);
             else if (whereToGo == 1)
@@ -118,6 +141,22 @@ void goToLoop(void *param)
             else if (whereToGo == 2)
                 gotoAngle(1000000);
             lastChoice = whereToGo;
+            vTaskDelay(500);
+            if (!(whereToGo == 0))
+            {
+                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+                vTaskDelay(1000);
+                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+                vTaskDelay(1000);
+            }
+        }
+        else if (!(whereToGo == 0))
+        {
+            vTaskDelay(1000);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+            vTaskDelay(1000);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+            vTaskDelay(1000);
         }
         vTaskDelay(1);
     }
@@ -152,6 +191,7 @@ void init()
     sFilterConfig.FilterMaskIdHigh = 0xFFFF;
     sFilterConfig.FilterMaskIdLow = 0xFFFF;
     sFilterConfig.FilterActivation = ENABLE;
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
     for (int i = 0; i < stdNum; i++)
     {
         sFilterConfig.FilterBank = i;
@@ -169,6 +209,7 @@ void init()
     HAL_CAN_Start(&hcan);
     // status = HAL_UART_RegisterCallback(
     //     &huart1, HAL_UART_RX_COMPLETE_CB_ID, uartCallBack);
+    // vTaskDelay(10);
 }
 class PID
 {
@@ -248,9 +289,54 @@ int16_t maxProtect(int16_t value)
     else
         return -maxValue;
 }
-
+void uartReceiveLoop(void *param)
+{
+    uint8_t data[8];
+    startAngle = motor5Angle;
+    round = 0;
+    while (1)
+    {
+        RemoteControl::receiveUartCustomInf(data);
+        for (int i = 0; i < 8; i++)
+        {
+            test3[i] = data[i];
+        }
+        if (data[0] = 0x42)
+        {
+            if (data[1] == 1)
+                whereToGo = 1;
+            else if (data[1] == 2)
+                whereToGo = 2;
+            else
+            {
+                whereToGo = 0;
+            }
+        }
+        vTaskDelay(1);
+    }
+}
 static volatile int cnt, cnt1;
-
+void timeBase(void *param)
+{
+    vTaskDelay(3 * 60000);
+    gotoAngle(400000);
+    for (int i = 0; i < 3; i++)
+        work;
+    gotoAngle(0);
+    vTaskDelay(3 * 60000);
+    gotoAngle(1000000);
+    for (int i = 0; i < 3; i++)
+        work;
+    vTaskDelay(3 * 60000);
+    gotoAngle(400000);
+    for (int i = 0; i < 3; i++)
+        work;
+    gotoAngle(0);
+    vTaskDelay(3 * 60000);
+    gotoAngle(1000000);
+    for (int i = 0; i < 3; i++)
+        work;
+}
 void PIDControlSpeedLoop(void *param)
 {
     PID p[5];
